@@ -31,6 +31,12 @@ $(() =>
 
 			this.player = new Player(this.ctx, this);
 
+			this.score = 0;
+			this.bestScore = 0;
+			this.loadBestScore();
+			this.updateScoreDisplay();
+			this.updateBestScoreDisplay();
+
 			this.generatePlatforms()
 
 			this.start();
@@ -59,6 +65,11 @@ $(() =>
 			this.generatePlatforms();
 			this.player.rightPressed = false;
 			this.player.leftPressed = false;
+
+			this.saveBestScore()
+
+			this.score = 0;
+			this.updateScoreDisplay();
 		}
 
 		start()
@@ -111,7 +122,13 @@ $(() =>
 
 			if (player.y < SCROLL_THRESHOLD)
 			{
-				let delta = Math.min(SCROLL_THRESHOLD - player.y, 2);
+				const delta = Math.min(SCROLL_THRESHOLD - player.y, 2);
+
+				if (delta > 0)
+				{
+					this.score += Math.floor(delta * 0.5);
+					this.updateScoreDisplay();
+				}
 
 				for (const platform of this.platforms) platform.sy += delta;
 
@@ -152,11 +169,32 @@ $(() =>
 		{
 			return Math.floor(Math.random() * (max - min + 1)) + min;
 		}
+
+		loadBestScore()
+		{
+			const saved = localStorage.getItem('doodleJumpBestScore');
+			if (saved !== null) this.bestScore = parseInt(saved, 10);
+		}
+
+		saveBestScore()
+		{
+			if (this.score > this.bestScore)
+			{
+				this.bestScore = this.score;
+				localStorage.setItem('doodleJumpBestScore', this.bestScore);
+				this.updateBestScoreDisplay();
+			}
+		}
+
+		updateBestScoreDisplay() {
+			$('#bestScoreValue').text(this.bestScore);
+		}
+
+		updateScoreDisplay() {
+			$('#scoreValue').text(Math.floor(this.score));
+		}
 	}
 
-
-
 	const field = new GameField();
-
 	requestAnimationFrame(() => field.start());
 });
