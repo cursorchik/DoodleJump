@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "start": "browser-sync start --config bs-config.js"
+  },
+  "dependencies": {
+    "@types/jquery": "^4.0.0"
+  }
+}
