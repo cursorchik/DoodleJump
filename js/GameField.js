@@ -1,21 +1,19 @@
 const PLATFORM_COLOR = 'green';
-const PLATFORM_WIDTH = 32;
+const PLATFORM_WIDTH = 36;
 const PLATFORM_HEIGHT = 5;
 const PLATFORM_OFFSET_Y = 40;
-const PLATFORM_SPEED = 0.2;
+const PLATFORM_SPEED = 0.3;
 
 const PLAYER_WIDTH = 16;
 const PLAYER_HEIGHT = 16;
 const PLAYER_X_SPEED = 0.4;
 
-const GRAVITY = 0.05;      // ускорение вниз за кадр
-const JUMP_POWER = -3;    // начальная скорость вверх (отрицательная)
+const GRAVITY = 0.045;
+const JUMP_POWER = -3.5;
 
-// Горизонтальная физика
-
-const HORIZONTAL_ACC = 0.09;     // ускорение при нажатии
-const HORIZONTAL_FRICTION = 0.87; // трение воздуха (1 = без потерь, <1 замедляет)
-const MAX_HORIZONTAL_SPEED = 2;   // максимальная скорость
+const HORIZONTAL_ACC = 0.09;
+const HORIZONTAL_FRICTION = 0.87;
+const MAX_HORIZONTAL_SPEED = 2;
 
 $(() =>
 {
@@ -30,6 +28,7 @@ $(() =>
 			this.platforms = new Set();
 
 			this.player = new Player(this.ctx, this);
+			this.ai = new AIPlayer(this.player, this);
 
 			this.score = 0;
 			this.bestScore = 0;
@@ -75,6 +74,8 @@ $(() =>
 		start()
 		{
 			this.clear();
+
+			this.ai.update();
 
 			for (const figure of this.platforms) figure.draw();
 			this.player.draw();
@@ -196,5 +197,12 @@ $(() =>
 	}
 
 	const field = new GameField();
+
+	$(document).on('keydown', (e) => {
+		if (e.key === 'a' || e.key === 'A') {
+			field.ai.toggle();
+		}
+	});
+
 	requestAnimationFrame(() => field.start());
 });
