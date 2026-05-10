@@ -2,14 +2,13 @@ const PLATFORM_COLOR = 'green';
 const PLATFORM_WIDTH = 36;
 const PLATFORM_HEIGHT = 5;
 const PLATFORM_OFFSET_Y = 40;
-const PLATFORM_SPEED = 0.3;
+const PLATFORM_SPEED = 0.4;
 
 const PLAYER_WIDTH = 16;
 const PLAYER_HEIGHT = 16;
-const PLAYER_X_SPEED = 0.4;
 
-const GRAVITY = 0.045;
-const JUMP_POWER = -3.5;
+const GRAVITY = 0.09;
+const JUMP_POWER = -5.0;
 
 const HORIZONTAL_ACC = 0.09;
 const HORIZONTAL_FRICTION = 0.87;
@@ -19,9 +18,9 @@ $(() =>
 {
 	class GameField
 	{
-		constructor(width = 200, height = 400)
+		constructor(canvas, width = 200, height = 400)
 		{
-			this.canvas = $('canvas');
+			this.canvas = canvas;
 			this.ctx = this.canvas[0].getContext('2d');
 			this.width = width;
 			this.height = height;
@@ -33,8 +32,6 @@ $(() =>
 			this.score = 0;
 			this.bestScore = 0;
 			this.loadBestScore();
-			this.updateScoreDisplay();
-			this.updateBestScoreDisplay();
 
 			this.generatePlatforms()
 
@@ -68,7 +65,6 @@ $(() =>
 			this.saveBestScore()
 
 			this.score = 0;
-			this.updateScoreDisplay();
 		}
 
 		start()
@@ -79,6 +75,21 @@ $(() =>
 
 			for (const figure of this.platforms) figure.draw();
 			this.player.draw();
+
+			this.ctx.font = "12px monospace";
+			this.ctx.fillStyle = "#222";
+			this.ctx.fillText("Score: " + Math.floor(this.score), 5, 15);
+			this.ctx.fillText("Best: " + this.bestScore, 5, 30);
+
+			// Статус AI (правый верхний угол)
+			this.ctx.font = "bold 12px monospace";
+			this.ctx.fillStyle = this.ai.enabled ? "#00aa00" : "#aa0000";
+			this.ctx.fillText("AI: " + (this.ai.enabled ? "ON" : "OFF"), this.width - 50, 15);
+
+			// Подсказка (внизу)
+			this.ctx.font = "10px monospace";
+			this.ctx.fillStyle = "#888";
+			this.ctx.fillText("Press A to toggle AI", this.width - 110, this.height - 5);
 
 			requestAnimationFrame(() => this.start());
 		}
@@ -125,11 +136,7 @@ $(() =>
 			{
 				const delta = Math.min(SCROLL_THRESHOLD - player.y, 2);
 
-				if (delta > 0)
-				{
-					this.score += Math.floor(delta * 0.5);
-					this.updateScoreDisplay();
-				}
+				if (delta > 0) this.score += Math.floor(delta * 0.5);
 
 				for (const platform of this.platforms) platform.sy += delta;
 
@@ -183,20 +190,11 @@ $(() =>
 			{
 				this.bestScore = this.score;
 				localStorage.setItem('doodleJumpBestScore', this.bestScore);
-				this.updateBestScoreDisplay();
 			}
-		}
-
-		updateBestScoreDisplay() {
-			$('#bestScoreValue').text(this.bestScore);
-		}
-
-		updateScoreDisplay() {
-			$('#scoreValue').text(Math.floor(this.score));
 		}
 	}
 
-	const field = new GameField();
+	const field = new GameField($('canvas'));
 
 	$(document).on('keydown', (e) => {
 		if (e.key === 'a' || e.key === 'A') {

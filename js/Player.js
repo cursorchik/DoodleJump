@@ -85,19 +85,6 @@ class Player
 		this.ctx.fillRect(this.x, this.y, PLAYER_WIDTH, PLAYER_HEIGHT);
 	}
 
-	moveRight()
-	{
-		if (this.x + PLAYER_WIDTH < this.field.width)
-		{
-			this.x = this.x + PLAYER_X_SPEED
-		}
-	}
-
-	moveLeft()
-	{
-		if (this.x > 0) this.x = this.x - PLAYER_X_SPEED
-	}
-
 	setDefaultPosition(platform)
 	{
 		this.x = platform.sx;

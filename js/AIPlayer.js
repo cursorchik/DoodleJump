@@ -1,15 +1,11 @@
-// AIPlayer.js
 class AIPlayer
 {
-	/**
-	 * @param {Player} player - объект игрока
-	 * @param {GameField} field - игровое поле (чтобы получить список платформ)
-	 */
 	constructor(player, field)
 	{
 		this.player = player;
 		this.field = field;
 		this.enabled = true;
+		this.tolerance = 4;
 	}
 
 	update()
@@ -19,36 +15,29 @@ class AIPlayer
 		const platforms = [...this.field.platforms];
 		if (platforms.length === 0) return;
 
-		let targetPlatform = null;
-		let minDistance = Infinity;
+		// Поиск ближайшей платформы снизу
+		let best = null;
+		let bestDist = Infinity;
 
-		for (const platform of platforms)
+		for (const p of platforms)
 		{
-			if (platform.sy > this.player.y)
-			{
-				const distance = platform.sy - this.player.y;
-				if (distance < minDistance)
-				{
-					minDistance = distance;
-					targetPlatform = platform;
-				}
-			}
+			if (p.sy <= this.player.y + PLAYER_HEIGHT) continue;
+			const dist = p.sy - (this.player.y + PLAYER_HEIGHT);
+
+			if (dist < bestDist && dist < 200) { bestDist = dist; best = p; }
 		}
 
-		if (!targetPlatform) return;
+		if (!best) { this.releaseControls(); return; }
 
-		const platformCenterX = targetPlatform.sx + targetPlatform.w / 2;
-		const playerCenterX = this.player.x + PLAYER_WIDTH / 2;
+		const targetCenter = best.sx + best.w / 2;
+		const playerCenter = this.player.x + PLAYER_WIDTH / 2;
+		const error = targetCenter - playerCenter;
 
-		const tolerance = 8;
-		if (Math.abs(platformCenterX - playerCenterX) <= tolerance)
+		if (Math.abs(error) <= this.tolerance)
 		{
-			this.player.rightPressed = false;
-			this.player.leftPressed = false;
-			return;
+			this.releaseControls();
 		}
-
-		if (playerCenterX < platformCenterX)
+		else if (error > 0)
 		{
 			this.player.rightPressed = true;
 			this.player.leftPressed = false;
@@ -58,16 +47,25 @@ class AIPlayer
 			this.player.rightPressed = false;
 			this.player.leftPressed = true;
 		}
+
+		this.preventEdgeCollision();
+	}
+
+	preventEdgeCollision()
+	{
+		if (this.player.x <= 5 && this.player.leftPressed) this.player.leftPressed = false;
+		if (this.player.x + PLAYER_WIDTH >= this.field.width - 5 && this.player.rightPressed) this.player.rightPressed = false;
+	}
+
+	releaseControls()
+	{
+		this.player.rightPressed = false;
+		this.player.leftPressed = false;
 	}
 
 	toggle()
 	{
 		this.enabled = !this.enabled;
-		if (!this.enabled)
-		{
-			this.player.rightPressed = false;
-			this.player.leftPressed = false;
-		}
-		console.log('AI enabled:', this.enabled);
+		this.releaseControls();
 	}
 }
