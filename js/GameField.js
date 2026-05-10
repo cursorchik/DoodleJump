@@ -1,25 +1,43 @@
+const PLATFORM_COLOR = 'green';
+const PLATFORM_WIDTH = 32;
+const PLATFORM_HEIGHT = 5;
+const PLATFORM_OFFSET_Y = 40;
+const PLATFORM_SPEED = 0.2;
+
+const PLAYER_WIDTH = 16;
+const PLAYER_HEIGHT = 16;
+const PLAYER_X_SPEED = 0.4;
+
+const GRAVITY = 0.05;      // ускорение вниз за кадр
+const JUMP_POWER = -3;    // начальная скорость вверх (отрицательная)
+
+// Горизонтальная физика
+
+const HORIZONTAL_ACC = 0.09;     // ускорение при нажатии
+const HORIZONTAL_FRICTION = 0.87; // трение воздуха (1 = без потерь, <1 замедляет)
+const MAX_HORIZONTAL_SPEED = 2;   // максимальная скорость
+
 $(() =>
 {
-	const PLATFORM_COLOR = 'green';
-	const PLATFORM_WIDTH = 32;
-	const PLATFORM_HEIGHT = 5;
-	const PLATFORM_OFFSET_Y = 40;
-
-	const PLAYER_WIDTH = 16;
-	const PLAYER_HEIGHT = 16;
-
 	class GameField
 	{
-		constructor(player, image, width = 200, height = 400)
+		constructor(width = 200, height = 400)
 		{
 			this.canvas = $('canvas');
 			this.ctx = this.canvas[0].getContext('2d');
 			this.width = width;
 			this.height = height;
-			this.figures = new Set();
+			this.platforms = new Set();
 
 			this.player = new Player(this.ctx, this);
 
+			this.generatePlatforms()
+
+			this.start();
+		}
+
+		generatePlatforms()
+		{
 			const linesCount = this.height / PLATFORM_OFFSET_Y;
 
 			for (let i = 1; i < linesCount; i++)
@@ -31,17 +49,23 @@ $(() =>
 				);
 			}
 
-			const arr = [...this.figures];
+			const arr = [...this.platforms];
 			this.player.setDefaultPosition(arr[arr.length - 1]);
+		}
 
-			this.start();
+		restartGame()
+		{
+			this.platforms.clear();
+			this.generatePlatforms();
+			this.player.rightPressed = false;
+			this.player.leftPressed = false;
 		}
 
 		start()
 		{
 			this.clear();
 
-			for (const figure of this.figures) figure.draw();
+			for (const figure of this.platforms) figure.draw();
 			this.player.draw();
 
 			requestAnimationFrame(() => this.start());
@@ -55,35 +79,73 @@ $(() =>
 
 		removeItem(figure)
 		{
-			this.figures.delete(figure);
+			this.platforms.delete(figure);
 		}
 
 		createPlatform(sx, sy)
 		{
 			const figure = new Figure(PLATFORM_WIDTH, PLATFORM_HEIGHT, PLATFORM_COLOR, sx, sy, this.ctx, this);
-			this.figures.add(figure);
+			this.platforms.add(figure);
 		}
 
-		isCollisionWithPlatforms(playerX, playerY)
+		findPlatformBelow(player)
 		{
-			for (const figure of [...this.figures])
+			for (const platform of this.platforms)
 			{
-				if (
-					playerX < (this.width - figure.sx + PLATFORM_WIDTH) || playerX > (this.width - figure.sx)
-					&&
-					playerY < (this.height - figure.sy + PLATFORM_HEIGHT) || playerY > (this.height - figure.sy)
-				)
+				const horizontal =	player.x + PLAYER_WIDTH > platform.sx &&
+											player.x < platform.sx + PLATFORM_WIDTH;
+
+				// Добавляем запас на основе скорости (чтобы не провалиться)
+				const vertical = player.vy > 0 &&
+					player.y + PLAYER_HEIGHT >= platform.sy &&
+					player.y + PLAYER_HEIGHT - player.vy <= platform.sy + PLATFORM_HEIGHT;
+
+				if (horizontal && vertical) return platform;
+			}
+			return null;
+		}
+
+		scrollIfNeeded(player)
+		{
+			const SCROLL_THRESHOLD = this.height * 0.5;
+
+			if (player.y < SCROLL_THRESHOLD)
+			{
+				let delta = Math.min(SCROLL_THRESHOLD - player.y, 2);
+
+				for (const platform of this.platforms) platform.sy += delta;
+
+				player.y += delta;
+
+				for (let platform of [...this.platforms])
 				{
-					if (figure.getIntersectCount() > 1)
-					{
-						figure.setCollision();
-						return true;
+					if (platform.sy >= this.height) {
+						this.platforms.delete(platform);
 					}
-					figure.setIntersect();
 				}
+
+				this.generateAdditionalPlatforms();
+			}
+		}
+
+		generateAdditionalPlatforms()
+		{
+			if (this.platforms.size === 0) return;
+
+			let minY = Infinity;
+			for (const platform of this.platforms)
+			{
+				if (platform.sy < minY) minY = platform.sy;
 			}
 
-			return false;
+			// Пока расстояние от верхней платформы до верха экрана не станет достаточно,
+			// добавляем новые платформы выше.
+			let currentY = minY - PLATFORM_OFFSET_Y;
+			while (currentY > -200) {
+				const x = this.getRandomInt(0, this.width - PLATFORM_WIDTH);
+				this.createPlatform(x, currentY);
+				currentY -= PLATFORM_OFFSET_Y;
+			}
 		}
 
 		getRandomInt(min, max)
@@ -92,64 +154,9 @@ $(() =>
 		}
 	}
 
-	class Player
-	{
-		x;
-		y;
-		fallDawn = false;
-		pointOfJump
 
-		jumpSpeed = 0.7;
-		maxJumpHeight = PLAYER_HEIGHT * 2;
 
-		ctx;
-		field;
-
-		constructor(ctx, field)
-		{
-			this.ctx = ctx;
-			this.field = field;
-		}
-
-		draw()
-		{
-			this.ctx.fillStyle = 'black';
-
-			if (this.fallDawn)
-			{
-				if (this.field.isCollisionWithPlatforms(this.x, this.y)) this.fallDawn = false;
-				else this.y = this.y + this.jumpSpeed;
-			}
-			else
-			{
-				if (Math.abs(this.pointOfJump - this.y) >= this.maxJumpHeight) this.fallDawn = true;
-				else this.y = this.y - this.jumpSpeed;
-			}
-
-			this.ctx.fillRect(this.x, this.y, PLAYER_WIDTH, PLAYER_HEIGHT);
-		}
-
-		moveRight()
-		{
-			// Кое что надо тут сделать еще...
-			this.x = this.x + 0.6
-		}
-
-		moveLeft()
-		{
-			// Кое что надо тут сделать еще...
-			this.x = this.x - 0.6
-		}
-
-		setDefaultPosition(platform)
-		{
-			this.x = platform.sx;
-			this.y = platform.sy - 16;
-			this.pointOfJump = this.y;
-		}
-	}
-
-	const field = new GameField('');
+	const field = new GameField();
 
 	requestAnimationFrame(() => field.start());
 });
